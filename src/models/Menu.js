@@ -38,7 +38,7 @@ const menuSchema = new mongoose.Schema({
   max_orders: {
     type: Number,
     required: [true, 'Maximum orders is required'],
-    min: [1, 'Maximum orders must be at least 1'],
+    min: [0, 'Maximum orders must be at least 1'],
     max: [15, 'Maximum orders cannot exceed 15'],
     default: 15
   },

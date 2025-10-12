@@ -5,84 +5,64 @@ const { deleteCachePattern } = require('../utils/cache');
 
 const createOrder = async (req, res) => {
   try {
-    const { menu_id, delivery_address_id, special_instructions, items } = req.body;
-
+    const { orders, delivery_address_id, special_instructions } = req.body;
     if (req.user.role !== 'customer') {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Only customers can place orders'
-      });
+      return res.status(403).json({ status: 'error', message: 'Only customers can place orders' });
     }
 
-    // Get menu details
-    const menu = await Menu.findOne({ _id: menu_id, active: true }).populate('mom_id');
-    if (!menu) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Menu not found or inactive'
-      });
-    }
-
-    // Check if menu is available
-    const now = new Date();
-    if (menu.available_from > now || (menu.available_until && menu.available_until < now)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Menu is not available at this time'
-      });
-    }
-
-    // Check menu max order availability
-    if (menu.max_orders < items) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Not enough available orders for this menu'
-      });
-    }
-
-    // Get delivery address
     const address = await Address.findOne({ _id: delivery_address_id });
     if (!address) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Delivery address not found'
-      });
+      return res.status(404).json({ status: 'error', message: 'Delivery address not found' });
     }
 
-    // Create order
-    const order = await Order.create({
-      customer_id: req.user._id,
-      menu_id,
-      mom_id: menu.mom_id._id,
-      total_amount: menu.total_cost * items,
-      delivery_address: {
-        address_line: address.address_line,
-        city: address.city,
-        state: address.state,
-        pincode: address.pincode
-      },
-      special_instructions,
-      estimated_delivery_time: new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
-    });
+    const results = [];
 
-    // 🔽 Decrease available orders after successful order creation
-    menu.max_orders -= items;
-    await menu.save();
+    for (const order of orders) {
+      try {
+        const menu = await Menu.findOne({ _id: order.menu_id, active: true }).populate('mom_id');
+        if (!menu) throw new Error('Menu not found or inactive');
 
-    // Clear cache
-    await deleteCachePattern(`orders:*`);
+        // const now = new Date();
+        // if (menu.available_from > now || (menu.available_until && menu.available_until < now)) {
+        //   throw new Error('Menu is not available at this time');
+        // }
 
-    res.status(201).json({
-      status: 'success',
-      message: 'Order placed successfully',
-      data: { order }
-    });
+        const available = Number(menu.max_orders);
+        const requested = Number(order.items);
+        
+        if (requested > available) {
+          throw new Error(`Only ${available} orders available`);
+        }
+
+        const newOrder = await Order.create({
+          customer_id: req.user._id,
+          menu_id: menu._id,
+          mom_id: menu.mom_id._id,
+          total_amount: menu.total_cost * order.items,
+          delivery_address: {
+            address_line: address.address_line,
+            city: address.city,
+            state: address.state,
+            pincode: address.pincode,
+          },
+          special_instructions,
+          estimated_delivery_time: new Date(Date.now() + 60 * 60 * 1000)
+        });
+
+        // Decrement menu available orders
+        menu.max_orders -= order.items;
+        await menu.save();
+
+        results.push({ menu_id: order.menu_id, status: 'success', order: newOrder });
+      } catch (err) {
+        results.push({ menu_id: order.menu_id, status: 'error', message: err.message });
+      }
+    }
+
+    res.status(201).json({ status: 'success', results });
   } catch (error) {
     console.error('Create Order Error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
-    });
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
 
@@ -112,7 +92,7 @@ const getOrders = async (req, res) => {
         .populate('mom_id', 'name phone_number')
         .populate({
           path: 'menu_id',
-          select: 'name description total_cost'
+          select: 'name items description total_cost status  payment_status'
         })
         .sort({ createdAt: -1 })
         .skip(skip)

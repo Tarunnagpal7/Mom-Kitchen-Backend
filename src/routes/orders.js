@@ -14,17 +14,31 @@ const {
 const router = express.Router();
 
 // Create order (customer only)
-router.post('/',
+router.post(
+  '/',
   authenticate,
   authorize('customer'),
   [
-    body('menu_id').isMongoId().withMessage('Invalid menu ID'),
-    body('delivery_address_id').isMongoId().withMessage('Invalid delivery address ID'),
-    body('special_instructions').optional().trim()
+    body('orders')
+      .isArray({ min: 1 })
+      .withMessage('At least one order is required'),
+    body('orders.*.menu_id')
+      .isMongoId()
+      .withMessage('Each order must have a valid menu_id'),
+    body('orders.*.items')
+      .isInt({ min: 1 })
+      .withMessage('Items count must be at least 1 for each order'),
+    body('delivery_address_id')
+      .isMongoId()
+      .withMessage('Invalid delivery address ID'),
+    body('special_instructions')
+      .optional()
+      .trim(),
   ],
   validateRequest,
   createOrder
 );
+
 
 // Get orders
 router.get('/',
