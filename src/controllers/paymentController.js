@@ -67,11 +67,17 @@ const verifyPayment = async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
 
     if (paymentIntent.status === "succeeded") {
-      // Update all related orders (use your matching logic)
-      await Order.updateMany(
-        { razorOrderId: paymentIntent.id },
+      const updateResult = await Order.updateMany(
+        { stripe_payment_intent_id: paymentIntent.id },
         { $set: { payment_status: "paid", status: "confirmed" } }
       );
+
+      if (updateResult.matchedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "No orders found for this payment",
+        });
+      }
 
       // Create payment record
       await Payment.create({
