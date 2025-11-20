@@ -18,7 +18,7 @@ const payoutSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['mom_share', 'admin_commission', 'delivery_fee'],
+    enum: ['mom_share', 'delivery_fee'],
     required: true
   },
   status: {
@@ -32,7 +32,7 @@ const payoutSchema = new mongoose.Schema({
   },
   provider_payout_id: {
     type: String,
-    trim: true // e.g., Razorpay transfer_id
+    trim: true // 
   },
   remarks: {
     type: String,

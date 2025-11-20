@@ -26,4 +26,46 @@ const sendOTP = async (phoneNumber, otp) => {
   }
 };
 
-module.exports = { sendOTP };
+const sendDeliverySMS = async (order, trackingUrl) => {
+  try {
+    const smsText = `
+          Namaste 🙏 ,${order.customer_id.name}
+          Your Mom's Kitchen order is on the way! 🚚🍱
+          
+
+          Order ID: ${order._id}
+          Item: ${order.menu_id.name}
+          Mom Chef: ${order.mom_id.name}
+          Amount: ₹${order.total_amount}
+
+          Track your delivery live:
+          ${trackingUrl}
+
+          Thank you for ordering with Mom's Kitchen ❤️
+          `;
+
+    const message = await client.messages.create({
+      body: smsText,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: order.customer_id.phone_number
+    });
+
+    return {
+      success: true,
+      messageId: message.sid
+    };
+
+  } catch (error) {
+    console.error("Delivery SMS Error:", error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+
+
+
+
+module.exports = { sendOTP , sendDeliverySMS};

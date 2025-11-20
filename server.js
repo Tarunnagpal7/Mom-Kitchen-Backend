@@ -20,13 +20,14 @@ const itemRoutes = require('./src/routes/items');
 const orderRoutes = require('./src/routes/orders');
 const ratingRoutes = require('./src/routes/ratings');
 const adminRoutes = require('./src/routes/admin');
-
+const paymentRoutes = require('./src/routes/payment');
 // Security middleware
 app.use(helmet());
 app.use(cors({ origin: "*" })); // allow all for testing
 app.use(compression());
 app.use(mongoSanitize());
 app.use(hpp());
+
 
 // Rate limiting
 const limiter = rateLimit({
@@ -36,12 +37,18 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+app.use(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' })
+);
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
 connectDB();
+
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -51,6 +58,11 @@ app.use('/api/items', itemRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
+
+// const { handleStripeWebhook } = require('./src/controllers/paymentController');
+// app.post('/api/stripe/webhook', handleStripeWebhook);
+
 
 // Health check endpoint
 app.get('/health', (req, res) => {

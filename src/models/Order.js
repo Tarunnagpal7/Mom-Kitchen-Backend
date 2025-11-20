@@ -31,6 +31,12 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'failed', 'refunded'],
     default: 'pending'
   },
+  quantity: {
+    type: Number,
+    required: true,
+    min: [1, 'Quantity must be at least 1'],
+  },
+  stripe_payment_intent_id : {type : String,default : ''},
   delivery_address: {
     address_line: String,
     city: String,

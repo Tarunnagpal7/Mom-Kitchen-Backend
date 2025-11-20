@@ -8,7 +8,8 @@ const {
   getOrderById,
   updateOrderStatus,
   cancelOrder,
-  getOrderStats
+  getOrderStats,
+  assignDelivery
 } = require('../controllers/orderController');
 
 const router = express.Router();
@@ -92,5 +93,8 @@ router.put('/:orderId/cancel',
   validateRequest,
   cancelOrder
 );
+
+router.post('/:id/assign-delivery', authenticate, assignDelivery);
+
 
 module.exports = router;
