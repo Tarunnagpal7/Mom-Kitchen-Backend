@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const redisClient = require('../config/redis');
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const redisClient = require("../config/redis");
 
 const authenticate = async (req, res, next) => {
   try {
@@ -12,22 +12,32 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.replace("Bearer ", "").trim();
     if (!token) {
       return res.status(401).json({
-        status: 'error',
-        message: 'Access token required'
+        status: "error",
+        message: "Access token required",
       });
     }
     // Check if token is blacklisted
     const isBlacklisted = await redisClient.get(`blacklist:${token}`);
 
-
     if (isBlacklisted) {
       return res.status(401).json({
-        status: 'error',
-        message: 'Token has been invalidated'
+        status: "error",
+        message: "Token has been invalidated",
       });
     }
 
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
+    if (decoded?.isAdminToken) {
+      req.user = {
+        _id: "admin",
+        role: "admin",
+        name: decoded.name || process.env.ADMIN_NAME || "Admin",
+        email: decoded.email || process.env.ADMIN_EMAIL,
+      };
+      req.auth = decoded;
+      return next();
+    }
 
     // Check cache first
     let user = await redisClient.get(`user:${decoded._id}`);
@@ -35,18 +45,23 @@ const authenticate = async (req, res, next) => {
     if (user) {
       user = JSON.parse(user);
     } else {
-      user = await User.findById(decoded._id).select('-otp -otp_expires -jwt_refresh_token');
+      user = await User.findById(decoded._id).select(
+        "-otp -otp_expires -jwt_refresh_token"
+      );
       if (user) {
         // Cache user for 15 minutes
-        await redisClient.setEx(`user:${decoded._id}`, 900, JSON.stringify(user));
+        await redisClient.setEx(
+          `user:${decoded._id}`,
+          900,
+          JSON.stringify(user)
+        );
       }
     }
-   
 
-    if (!user ) {
+    if (!user) {
       return res.status(401).json({
-        status: 'error',
-        message: 'User not found or inactive'
+        status: "error",
+        message: "User not found or inactive",
       });
     }
 
@@ -55,17 +70,17 @@ const authenticate = async (req, res, next) => {
 
     next();
   } catch (err) {
-    if (err.name === 'TokenExpiredError') {
+    if (err.name === "TokenExpiredError") {
       return res.status(401).json({
-        status: 'error',
-        code: 'TOKEN_EXPIRED',
-        message: 'Access token expired'
+        status: "error",
+        code: "TOKEN_EXPIRED",
+        message: "Access token expired",
       });
     }
     return res.status(401).json({
-      status: 'error',
-      code: 'INVALID_TOKEN',
-      message: 'Invalid token'
+      status: "error",
+      code: "INVALID_TOKEN",
+      message: "Invalid token",
     });
   }
 };
@@ -74,15 +89,15 @@ const authorize = (...roles) => {
   return (req, res, next) => {
     const effectiveRole = req.user?.role || req.auth?.role;
     if (!roles.includes(effectiveRole)) {
-      console.warn('Authorize denied:', {
+      console.warn("Authorize denied:", {
         expected: roles,
         tokenRole: req.auth?.role,
         userRole: req.user?.role,
-        userId: req.user?._id?.toString?.()
+        userId: req.user?._id?.toString?.(),
       });
       return res.status(403).json({
-        status: 'error',
-        message: 'Access denied'
+        status: "error",
+        message: "Access denied",
       });
     }
     next();

@@ -176,7 +176,15 @@ const createOrder = async (req, res) => {
 
 const getOrders = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, customer_id, mom_id } = req.query;
+    console.log("Received Querey: ", req.query);
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      customer_id,
+      mom_id,
+      payment_status,
+    } = req.query;
     const filter = {};
 
     // Role-based filtering
@@ -190,6 +198,7 @@ const getOrders = async (req, res) => {
     }
 
     if (status) filter.status = status;
+    if (payment_status) filter.payment_status = payment_status;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 

@@ -1,9 +1,9 @@
-const User = require('../models/User');
-const MomProfile = require('../models/MomProfile');
-const Menu = require('../models/Menu');
-const Order = require('../models/Order');
-const Rating = require('../models/Rating');
-const { deleteCachePattern } = require('../utils/cache');
+const User = require("../models/User");
+const MomProfile = require("../models/MomProfile");
+const Menu = require("../models/Menu");
+const Order = require("../models/Order");
+const Rating = require("../models/Rating");
+const { deleteCachePattern } = require("../utils/cache");
 
 const getAllUsers = async (req, res) => {
   try {
@@ -11,36 +11,37 @@ const getAllUsers = async (req, res) => {
     const filter = {};
 
     if (role) filter.role = role;
-    if (is_active !== undefined) filter.is_active = is_active === 'true';
+    if (is_active !== undefined) filter.is_active = is_active === "true";
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const [users, totalCount] = await Promise.all([
       User.find(filter)
-        .select('-otp -otp_expires -jwt_refresh_token')
+        .select("-otp -otp_expires -jwt_refresh_token")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
-      User.countDocuments(filter)
+      User.countDocuments(filter),
     ]);
 
+    //console.log("Number of MOMS: ", users);
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
         users,
         pagination: {
           currentPage: parseInt(page),
           totalPages: Math.ceil(totalCount / parseInt(limit)),
           totalCount,
-          limit: parseInt(limit)
-        }
-      }
+          limit: parseInt(limit),
+        },
+      },
     });
   } catch (error) {
-    console.error('Get All Users Error:', error);
+    console.error("Get All Users Error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+      status: "error",
+      message: "Internal server error",
     });
   }
 };
@@ -54,17 +55,17 @@ const toggleUserStatus = async (req, res) => {
       userId,
       { is_active },
       { new: true }
-    ).select('-otp -otp_expires -jwt_refresh_token');
+    ).select("-otp -otp_expires -jwt_refresh_token");
 
     if (!user) {
       return res.status(404).json({
-        status: 'error',
-        message: 'User not found'
+        status: "error",
+        message: "User not found",
       });
     }
 
     // If deactivating a mom, also deactivate their profile
-    if (!is_active && user.role === 'mom') {
+    if (!is_active && user.role === "mom") {
       await MomProfile.findOneAndUpdate(
         { user_id: userId },
         { is_active: false }
@@ -76,15 +77,15 @@ const toggleUserStatus = async (req, res) => {
     await deleteCachePattern(`menus:*`);
 
     res.status(200).json({
-      status: 'success',
-      message: `User ${is_active ? 'activated' : 'deactivated'} successfully`,
-      data: { user }
+      status: "success",
+      message: `User ${is_active ? "activated" : "deactivated"} successfully`,
+      data: { user },
     });
   } catch (error) {
-    console.error('Toggle User Status Error:', error);
+    console.error("Toggle User Status Error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+      status: "error",
+      message: "Internal server error",
     });
   }
 };
@@ -94,37 +95,37 @@ const getAllMoms = async (req, res) => {
     const { page = 1, limit = 20, is_active, authenticity } = req.query;
     const filter = {};
 
-    if (is_active !== undefined) filter.is_active = is_active === 'true';
-    if (authenticity) filter.authenticity = new RegExp(authenticity, 'i');
+    if (is_active !== undefined) filter.is_active = is_active === "true";
+    if (authenticity) filter.authenticity = new RegExp(authenticity, "i");
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const [moms, totalCount] = await Promise.all([
       MomProfile.find(filter)
-        .populate('user_id', 'name phone_number is_active createdAt')
+        .populate("user_id", "name phone_number is_active createdAt")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
-      MomProfile.countDocuments(filter)
+      MomProfile.countDocuments(filter),
     ]);
 
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
         moms,
         pagination: {
           currentPage: parseInt(page),
           totalPages: Math.ceil(totalCount / parseInt(limit)),
           totalCount,
-          limit: parseInt(limit)
-        }
-      }
+          limit: parseInt(limit),
+        },
+      },
     });
   } catch (error) {
-    console.error('Get All Moms Error:', error);
+    console.error("Get All Moms Error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+      status: "error",
+      message: "Internal server error",
     });
   }
 };
@@ -138,36 +139,35 @@ const toggleMomStatus = async (req, res) => {
       momId,
       { is_active },
       { new: true }
-    ).populate('user_id', 'name phone_number');
+    ).populate("user_id", "name phone_number");
 
     if (!mom) {
       return res.status(404).json({
-        status: 'error',
-        message: 'Mom profile not found'
+        status: "error",
+        message: "Mom profile not found",
       });
     }
 
     // If deactivating mom, also deactivate their menus
     if (!is_active) {
-      await Menu.updateMany(
-        { mom_id: mom.user_id._id },
-        { active: false }
-      );
+      await Menu.updateMany({ mom_id: mom.user_id._id }, { active: false });
     }
 
     // Clear cache
     await deleteCachePattern(`menus:*`);
 
     res.status(200).json({
-      status: 'success',
-      message: `Mom profile ${is_active ? 'activated' : 'deactivated'} successfully`,
-      data: { mom }
+      status: "success",
+      message: `Mom profile ${
+        is_active ? "activated" : "deactivated"
+      } successfully`,
+      data: { mom },
     });
   } catch (error) {
-    console.error('Toggle Mom Status Error:', error);
+    console.error("Toggle Mom Status Error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+      status: "error",
+      message: "Internal server error",
     });
   }
 };
@@ -177,37 +177,37 @@ const getAllMenus = async (req, res) => {
     const { page = 1, limit = 20, active, mom_id } = req.query;
     const filter = {};
 
-    if (active !== undefined) filter.active = active === 'true';
+    if (active !== undefined) filter.active = active === "true";
     if (mom_id) filter.mom_id = mom_id;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const [menus, totalCount] = await Promise.all([
       Menu.find(filter)
-        .populate('mom_id', 'name phone_number')
+        .populate("mom_id", "name phone_number")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
-      Menu.countDocuments(filter)
+      Menu.countDocuments(filter),
     ]);
 
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
         menus,
         pagination: {
           currentPage: parseInt(page),
           totalPages: Math.ceil(totalCount / parseInt(limit)),
           totalCount,
-          limit: parseInt(limit)
-        }
-      }
+          limit: parseInt(limit),
+        },
+      },
     });
   } catch (error) {
-    console.error('Get All Menus Error:', error);
+    console.error("Get All Menus Error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+      status: "error",
+      message: "Internal server error",
     });
   }
 };
@@ -221,12 +221,12 @@ const toggleMenuStatus = async (req, res) => {
       menuId,
       { active },
       { new: true }
-    ).populate('mom_id', 'name phone_number');
+    ).populate("mom_id", "name phone_number");
 
     if (!menu) {
       return res.status(404).json({
-        status: 'error',
-        message: 'Menu not found'
+        status: "error",
+        message: "Menu not found",
       });
     }
 
@@ -235,15 +235,15 @@ const toggleMenuStatus = async (req, res) => {
     await deleteCachePattern(`menu:${menuId}`);
 
     res.status(200).json({
-      status: 'success',
-      message: `Menu ${active ? 'activated' : 'deactivated'} successfully`,
-      data: { menu }
+      status: "success",
+      message: `Menu ${active ? "activated" : "deactivated"} successfully`,
+      data: { menu },
     });
   } catch (error) {
-    console.error('Toggle Menu Status Error:', error);
+    console.error("Toggle Menu Status Error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+      status: "error",
+      message: "Internal server error",
     });
   }
 };
@@ -261,28 +261,28 @@ const getDashboardStats = async (req, res) => {
       pendingOrders,
       deliveredOrders,
       cancelledOrders,
-      totalRevenue
+      totalRevenue,
     ] = await Promise.all([
       User.countDocuments({ is_active: true }),
-      User.countDocuments({ role: 'customer', is_active: true }),
-      User.countDocuments({ role: 'mom', is_active: true }),
+      User.countDocuments({ role: "customer", is_active: true }),
+      User.countDocuments({ role: "mom", is_active: true }),
       MomProfile.countDocuments({ is_active: true }),
       Menu.countDocuments(),
       Menu.countDocuments({ active: true }),
       Order.countDocuments(),
-      Order.countDocuments({ status: 'pending' }),
-      Order.countDocuments({ status: 'delivered' }),
-      Order.countDocuments({ status: 'cancelled' }),
+      Order.countDocuments({ status: "pending" }),
+      Order.countDocuments({ status: "delivered" }),
+      Order.countDocuments({ status: "cancelled" }),
       Order.aggregate([
-        { $match: { status: 'delivered' } },
-        { $group: { _id: null, total: { $sum: '$total_amount' } } }
-      ])
+        { $match: { payment_status: "paid" } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } },
+      ]),
     ]);
 
     // Recent orders
     const recentOrders = await Order.find()
-      .populate('customer_id', 'name phone_number')
-      .populate('mom_id', 'name phone_number')
+      .populate("customer_id", "name phone_number")
+      .populate("mom_id", "name phone_number")
       .sort({ createdAt: -1 })
       .limit(10);
 
@@ -291,25 +291,29 @@ const getDashboardStats = async (req, res) => {
       {
         $match: {
           createdAt: {
-            $gte: new Date(new Date().getFullYear(), 0, 1) // This year
-          }
-        }
+            $gte: new Date(new Date().getFullYear(), 0, 1), // This year
+          },
+        },
       },
       {
         $group: {
           _id: {
-            month: { $month: '$createdAt' },
-            year: { $year: '$createdAt' }
+            month: { $month: "$createdAt" },
+            year: { $year: "$createdAt" },
           },
           orders: { $sum: 1 },
-          revenue: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, '$total_amount', 0] } }
-        }
+          revenue: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "delivered"] }, "$total_amount", 0],
+            },
+          },
+        },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
         overview: {
           totalUsers,
@@ -322,17 +326,17 @@ const getDashboardStats = async (req, res) => {
           pendingOrders,
           deliveredOrders,
           cancelledOrders,
-          totalRevenue: totalRevenue[0]?.total || 0
+          totalRevenue: totalRevenue[0]?.total || 0,
         },
         recentOrders,
-        monthlyStats
-      }
+        monthlyStats,
+      },
     });
   } catch (error) {
-    console.error('Get Dashboard Stats Error:', error);
+    console.error("Get Dashboard Stats Error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Internal server error'
+      status: "error",
+      message: "Internal server error",
     });
   }
 };
@@ -344,5 +348,5 @@ module.exports = {
   toggleMomStatus,
   getAllMenus,
   toggleMenuStatus,
-  getDashboardStats
+  getDashboardStats,
 };
